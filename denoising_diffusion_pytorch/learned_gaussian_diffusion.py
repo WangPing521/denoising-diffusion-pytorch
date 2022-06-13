@@ -3,7 +3,7 @@ from math import pi, sqrt, log as ln
 
 import torch
 
-from denoising_diffusion_pytorch.denoising_diffusion_pytorch import (
+from denoising_diffusion_pytorch.helper import (
     GaussianDiffusion,
     extract,
     unnormalize_to_zero_to_one,
