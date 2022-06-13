@@ -12,7 +12,6 @@ from torch.utils import data
 from torchvision import transforms, utils
 from tqdm import tqdm
 
-
 # helpers functions
 from denoising_diffusion_pytorch.unet import EMA
 
@@ -127,7 +126,7 @@ class GaussianDiffusion(nn.Module):
             raise ValueError(f"unknown beta schedule {beta_schedule}")
 
         alphas = 1.0 - betas
-        alphas_cumprod = torch.cumprod(alphas, axis=0)
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
         alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
 
         (timesteps,) = betas.shape
@@ -235,7 +234,7 @@ class GaussianDiffusion(nn.Module):
         img = torch.randn(shape, device=device)
 
         for i in tqdm(
-            reversed(range(0, self.num_timesteps)),
+            reversed(range(self.num_timesteps)),
             desc="sampling loop time step",
             total=self.num_timesteps,
         ):
@@ -264,7 +263,7 @@ class GaussianDiffusion(nn.Module):
 
         img = (1 - lam) * xt1 + lam * xt2
         for i in tqdm(
-            reversed(range(0, t)), desc="interpolation sample time step", total=t
+            reversed(range(t)), desc="interpolation sample time step", total=t
         ):
             img = self.p_sample(
                 img, torch.full((b,), i, device=device, dtype=torch.long)
@@ -307,11 +306,10 @@ class GaussianDiffusion(nn.Module):
         return loss
 
     def forward(self, img, *args, **kwargs):
-        b, _, h, w, device, img_size, = (
-            *img.shape,
-            img.device,
-            self.image_size,
-        )
+        b, _, h, w = img.shape
+        device = img.device
+        img_size = self.image_size
+
         assert (
             h == img_size and w == img_size
         ), f"height and width of image must be {img_size}"
@@ -387,9 +385,15 @@ class Trainer(object):
         self.ds = Dataset(folder, image_size)
         self.dl = cycle(
             data.DataLoader(
-                self.ds, batch_size=train_batch_size, shuffle=True, pin_memory=True
+                self.ds,
+                batch_size=train_batch_size,
+                shuffle=True,
+                pin_memory=True,
+                persistent_workers=True,
+                num_workers=10,
             )
         )
+
         self.opt = Adam(diffusion_model.parameters(), lr=train_lr)
 
         self.step = 0
@@ -430,9 +434,8 @@ class Trainer(object):
 
     def train(self):
         with tqdm(initial=self.step, total=self.train_num_steps) as pbar:
-
             while self.step < self.train_num_steps:
-                for i in range(self.gradient_accumulate_every):
+                for _ in range(self.gradient_accumulate_every):
                     data = next(self.dl).cuda()
 
                     with autocast(enabled=self.amp):
