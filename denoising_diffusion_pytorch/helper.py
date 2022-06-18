@@ -28,8 +28,7 @@ def default(val, d):
 
 def cycle(dl):
     while True:
-        for data in dl:
-            yield data
+        yield from dl
 
 
 def num_to_groups(num, divisor):
@@ -42,23 +41,13 @@ def num_to_groups(num, divisor):
 
 
 def normalize_to_neg_one_to_one(img):
+    assert img.max() <= 1 and img.min() >= 0, (img.min(), img.max())
     return img * 2 - 1
 
 
 def unnormalize_to_zero_to_one(t):
+    assert t.max() <= 1 and t.min() >= -1, (t.min(), t.max())
     return (t + 1) * 0.5
-
-
-# small helper modules
-
-
-# building block modules
-
-
-# model
-
-
-# gaussian diffusion trainer class
 
 
 def extract(a, t, x_shape):
@@ -370,7 +359,7 @@ class Trainer(object):
     ):
         super().__init__()
         self.model = diffusion_model
-        self.ema = EMA(ema_decay)
+        self.ema_updater = EMA(ema_decay)
         self.ema_model = copy.deepcopy(self.model)
         self.update_ema_every = update_ema_every
 
@@ -413,7 +402,7 @@ class Trainer(object):
         if self.step < self.step_start_ema:
             self.reset_parameters()
             return
-        self.ema.update_model_average(self.ema_model, self.model)
+        self.ema_updater.update_model_average(self.ema_model, self.model)
 
     def save(self, milestone):
         data = {
