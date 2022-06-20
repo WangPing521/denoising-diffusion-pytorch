@@ -1,7 +1,9 @@
 import copy
 from inspect import isfunction
 from pathlib import Path
+from typing import Set
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -312,20 +314,14 @@ class GaussianDiffusion(nn.Module):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, folder, image_size, exts=["jpg", "jpeg", "png"]):
+    def __init__(self, folder, *, transform: transforms.Compose, exts: Set[str] = None):
         super().__init__()
+        if exts is None:
+            exts = {"jpg", "jpeg", "png"}
         self.folder = folder
-        self.image_size = image_size
         self.paths = [p for ext in exts for p in Path(f"{folder}").glob(f"**/*.{ext}")]
 
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize(image_size),
-                transforms.RandomHorizontalFlip(),
-                transforms.CenterCrop(image_size),
-                transforms.ToTensor(),
-            ]
-        )
+        self.transform = transform
 
     def __len__(self):
         return len(self.paths)
@@ -336,6 +332,52 @@ class Dataset(data.Dataset):
         return self.transform(img)
 
 
+class OneHot:
+    def __init__(self, num_classes, class_dim=1):
+        self.num_classes = num_classes
+        self.class_dim = class_dim
+
+    def __call__(self, x: Image.Image):
+        torch_image = torch.from_numpy(np.asarray(x, dtype=np.int64))
+        return (
+            F.one_hot(torch_image, self.num_classes)
+            .moveaxis(-1, self.class_dim)
+            .float()
+        )
+
+
+# data augmentation
+def png_transform(image_size):
+    return transforms.Compose(
+        [
+            transforms.Resize(image_size),
+            transforms.RandomHorizontalFlip(),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+        ]
+    )
+
+
+# data augmentation
+def mask_transform(
+    image_size,
+    num_classes,
+):
+    return transforms.Compose(
+        [
+            transforms.Resize(
+                image_size, interpolation=transforms.InterpolationMode.NEAREST
+            ),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(
+                90,
+            ),
+            transforms.CenterCrop(image_size),
+            OneHot(num_classes, class_dim=0),
+        ]
+    )
+
+
 # trainer class
 
 
@@ -344,9 +386,9 @@ class Trainer(object):
         self,
         diffusion_model,
         folder,
+        transform,
         *,
         ema_decay=0.995,
-        image_size=128,
         train_batch_size=32,
         train_lr=1e-4,
         train_num_steps=100000,
@@ -371,7 +413,7 @@ class Trainer(object):
         self.gradient_accumulate_every = gradient_accumulate_every
         self.train_num_steps = train_num_steps
 
-        self.ds = Dataset(folder, image_size)
+        self.ds = Dataset(folder, transform=transform)
         self.dl = cycle(
             data.DataLoader(
                 self.ds,
