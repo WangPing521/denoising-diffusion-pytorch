@@ -224,14 +224,15 @@ class GaussianDiffusion(nn.Module):
         b = shape[0]
         img = torch.randn(shape, device=device)
 
-        for i in tqdm(
+        with tqdm(
             reversed(range(self.num_timesteps)),
             desc="sampling loop time step",
             total=self.num_timesteps,
-        ):
-            img = self.p_sample(
-                img, torch.full((b,), i, device=device, dtype=torch.long)
-            )
+        ) as pbar:
+            for i in pbar:
+                img = self.p_sample(
+                    img, torch.full((b,), i, device=device, dtype=torch.long)
+                )
 
         img = unnormalize_to_zero_to_one(img)
         return img
@@ -493,6 +494,9 @@ class Trainer(object):
                         map(lambda n: self.ema_model.sample(batch_size=n), batches)
                     )
                     all_images = torch.cat(all_images_list, dim=0)
+                    if all_images.shape[1] not in {1, 3}:
+                        all_images = all_images.argmax(1).float().unsqueeze(1)
+
                     utils.save_image(
                         all_images,
                         str(self.results_folder / f"sample-{milestone}.png"),
