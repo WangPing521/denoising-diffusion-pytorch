@@ -19,6 +19,7 @@ def get_args():
     )
     parser.add_argument("--batch-size", "-b", type=int, default=8, help="batch size")
     parser.add_argument("--image-size", "-s", type=int, default=96, help="image size")
+    parser.add_argument("--save-dir", type=str, required=True, help="save folder")
     args = parser.parse_args()
     if args.data == "cifar10":
         args.input_channels = 3
@@ -44,6 +45,7 @@ def main(args):
 
     diffusion = GaussianDiffusion(
         model,
+        channels=args.input_channels,
         image_size=args.image_size,
         timesteps=1000,
         loss_type="l1",  # number of steps  # L1 or L2
@@ -59,6 +61,7 @@ def main(args):
         gradient_accumulate_every=1,  # gradient accumulation steps
         ema_decay=0.995,  # exponential moving average decay
         amp=True,  # turn on mixed precision
+        results_folder=args.save_dir,
     )
 
     trainer.train()
