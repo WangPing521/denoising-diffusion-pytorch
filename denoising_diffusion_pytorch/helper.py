@@ -496,6 +496,7 @@ class Trainer(object):
                     all_images = torch.cat(all_images_list, dim=0)
                     if all_images.shape[1] not in {1, 3}:
                         all_images = all_images.argmax(1).float().unsqueeze(1)
+                        all_images = convert_class2rgb(all_images)
 
                     utils.save_image(
                         all_images,
@@ -508,3 +509,19 @@ class Trainer(object):
                 pbar.update(1)
 
         print("training complete")
+
+
+color_dict = {0: (0, 0, 0), 1: (81, 0, 81), 2: (128, 64, 128), 3: (244, 35, 232)}
+
+
+def convert_class2rgb(predict: torch.Tensor):
+    b, _, h, w = predict.shape
+    return (
+        torch.from_numpy(
+            np.stack(
+                np.vectorize(color_dict.get)(predict.cpu().numpy().squeeze())
+            ).swapaxes(0, 1)
+        )
+        .float()
+        .to(predict.device)
+    )
