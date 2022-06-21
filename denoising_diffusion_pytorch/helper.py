@@ -1,7 +1,7 @@
 import copy
 from inspect import isfunction
 from pathlib import Path
-from typing import Set
+from typing import Set, TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -16,6 +16,9 @@ from tqdm import tqdm
 
 # helpers functions
 from denoising_diffusion_pytorch.unet import EMA
+
+if TYPE_CHECKING:
+    from denoising_diffusion_pytorch.unet import Unet
 
 
 def exists(x):
@@ -89,9 +92,9 @@ def cosine_beta_schedule(timesteps, s=0.008):
 class GaussianDiffusion(nn.Module):
     def __init__(
         self,
-        denoise_fn,
+        denoise_fn: "Unet",
         *,
-        image_size,
+        image_size: int,
         channels=3,
         timesteps=1000,
         loss_type="l1",
@@ -254,12 +257,13 @@ class GaussianDiffusion(nn.Module):
         xt1, xt2 = map(lambda x: self.q_sample(x, t=t_batched), (x1, x2))
 
         img = (1 - lam) * xt1 + lam * xt2
-        for i in tqdm(
+        with tqdm(
             reversed(range(t)), desc="interpolation sample time step", total=t
-        ):
-            img = self.p_sample(
-                img, torch.full((b,), i, device=device, dtype=torch.long)
-            )
+        ) as pbar:
+            for i in pbar:
+                img = self.p_sample(
+                    img, torch.full((b,), i, device=device, dtype=torch.long)
+                )
 
         return img
 
@@ -380,9 +384,7 @@ def mask_transform(
 
 
 # trainer class
-
-
-class Trainer(object):
+class Trainer:
     def __init__(
         self,
         diffusion_model,
@@ -496,7 +498,7 @@ class Trainer(object):
                     all_images = torch.cat(all_images_list, dim=0)
                     if all_images.shape[1] not in {1, 3}:
                         all_images = all_images.argmax(1).float().unsqueeze(1)
-                        all_images = convert_class2rgb(all_images)
+                        all_images = convert_class2rgb(all_images) / 255.0
 
                     utils.save_image(
                         all_images,
