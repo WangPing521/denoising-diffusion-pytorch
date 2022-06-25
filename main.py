@@ -1,7 +1,11 @@
 import argparse
 
 from denoising_diffusion_pytorch import Unet, GaussianDiffusion, Trainer
-from denoising_diffusion_pytorch.helper import mask_transform, png_transform
+from denoising_diffusion_pytorch.helper import (
+    mask_transform,
+    png_transform,
+    real_transform,
+)
 
 
 def get_args():
@@ -14,7 +18,7 @@ def get_args():
         "-d",
         type=str,
         required=True,
-        choices=["cifar10", "seg_mask"],
+        choices=["cifar10", "seg_mask", "real"],
         help="data set",
     )
     parser.add_argument("--batch-size", "-b", type=int, default=8, help="batch size")
@@ -26,11 +30,18 @@ def get_args():
         args.output_channels = 3
         args.transform = png_transform(args.image_size)
         args.data_path = "./cifar10"
-    else:
+    elif args.data == "seg_mask":
         args.input_channels = 4
         args.output_channels = 4
         args.transform = mask_transform(image_size=args.image_size, num_classes=4)
         args.data_path = "./seg_mask"
+    elif args.data == "real":
+        args.input_channels = 3
+        args.output_channels = 3
+        args.transform = real_transform(args.image_size)
+        args.data_path = "./real"
+    else:
+        raise NotImplementedError(args.data)
 
     return args
 

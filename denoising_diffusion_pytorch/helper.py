@@ -322,7 +322,7 @@ class Dataset(data.Dataset):
     def __init__(self, folder, *, transform: transforms.Compose, exts: Set[str] = None):
         super().__init__()
         if exts is None:
-            exts = {"jpg", "jpeg", "png"}
+            exts = {"jpg", "jpeg", "png", "JPG", "JPEG", "PNG"}
         self.folder = folder
         self.paths = [p for ext in exts for p in Path(f"{folder}").glob(f"**/*.{ext}")]
 
@@ -379,6 +379,17 @@ def mask_transform(
             ),
             transforms.CenterCrop(image_size),
             OneHot(num_classes, class_dim=0),
+        ]
+    )
+
+
+def real_transform(image_size):
+    return transforms.Compose(
+        [
+            transforms.Resize((512, 384)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop((image_size, image_size)),
+            transforms.ToTensor(),
         ]
     )
 
