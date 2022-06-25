@@ -3,6 +3,7 @@ results/
 .idea
 cifar10
 seg_mask
+real
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

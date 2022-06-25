@@ -11,6 +11,7 @@ from torch import nn
 from torch.cuda.amp import autocast, GradScaler
 from torch.optim import Adam
 from torch.utils import data
+from torch.utils.data import Sampler
 from torchvision import transforms, utils
 from tqdm import tqdm
 
@@ -87,6 +88,28 @@ def cosine_beta_schedule(timesteps, s=0.008):
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
     return torch.clip(betas, 0, 0.999)
+
+
+class InfiniteRandomSampler(Sampler):
+    def __init__(self, data_source, shuffle=True):
+        super().__init__(data_source)
+        self.data_source = data_source
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        if len(self.data_source) > 0:
+            while True:
+                yield from self.__iter_once__()
+        else:
+            yield from iter([])
+
+    def __iter_once__(self):
+        if self.shuffle:
+            return iter(torch.randperm(len(self.data_source)).tolist())
+        return iter(torch.arange(start=0, end=len(self.data_source)).tolist())
+
+    def __len__(self):
+        return len(self.data_source)
 
 
 class GaussianDiffusion(nn.Module):
@@ -428,11 +451,11 @@ class Trainer:
         self.train_num_steps = train_num_steps
 
         self.ds = Dataset(folder, transform=transform)
-        self.dl = cycle(
+        self.dl = iter(
             data.DataLoader(
                 self.ds,
+                sampler=InfiniteRandomSampler(self.ds, shuffle=True),
                 batch_size=train_batch_size,
-                shuffle=True,
                 pin_memory=True,
                 persistent_workers=True,
                 num_workers=10,
