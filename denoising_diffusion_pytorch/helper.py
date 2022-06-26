@@ -1,7 +1,9 @@
+import contextlib
 import copy
+from argparse import Namespace
 from inspect import isfunction
 from pathlib import Path
-from typing import Set, TYPE_CHECKING
+from typing import Set, TYPE_CHECKING, Tuple
 
 import numpy as np
 import torch
@@ -117,7 +119,7 @@ class GaussianDiffusion(nn.Module):
         self,
         denoise_fn: "Unet",
         *,
-        image_size: int,
+        image_size: tuple[int, int],
         channels=3,
         timesteps=1000,
         loss_type="l1",
@@ -269,6 +271,13 @@ class GaussianDiffusion(nn.Module):
         channels = self.channels
         return self.p_sample_loop((batch_size, channels, image_size, image_size))
 
+    @contextlib.contextmanager
+    def change_test_image_size(self, image_size: Tuple[int, int]):
+        old_image_size = self.image_size
+        self.image_size = image_size
+        yield
+        self.image_size = old_image_size
+
     @torch.no_grad()
     def interpolate(self, x1, x2, t=None, lam=0.5):
         b, *_, device = *x1.shape, x1.device
@@ -330,8 +339,8 @@ class GaussianDiffusion(nn.Module):
         img_size = self.image_size
 
         assert (
-            h == img_size and w == img_size
-        ), f"height and width of image must be {img_size}"
+            h == img_size[0] and w == img_size[1]
+        ), f"height and width of image must be {img_size}, given {h}x{w}"
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
 
         img = normalize_to_neg_one_to_one(img)
@@ -406,12 +415,13 @@ def mask_transform(
     )
 
 
-def real_transform(image_size):
+def real_transform(image_size: Tuple[int, int]):
     return transforms.Compose(
         [
             transforms.Resize((512, 384)),
             transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop((image_size, image_size)),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+            transforms.RandomCrop([int(x) for x in image_size]),
             transforms.ToTensor(),
         ]
     )
@@ -492,15 +502,16 @@ class Trainer:
         }
         torch.save(data, str(self.results_folder / f"model-{milestone}.pt"))
 
-    def load(self, milestone):
-        data = torch.load(str(self.results_folder / f"model-{milestone}.pt"))
+    def load(self, checkpoint_path: str):
+        print(f"loading checkpoint from {checkpoint_path}")
+        data = torch.load(str(checkpoint_path))
 
         self.step = data["step"]
         self.model.load_state_dict(data["model"])
         self.ema_model.load_state_dict(data["ema"])
         self.scaler.load_state_dict(data["scaler"])
 
-    def train(self):
+    def train(self, args: Namespace):
         with tqdm(initial=self.step, total=self.train_num_steps) as pbar:
             while self.step < self.train_num_steps:
                 for _ in range(self.gradient_accumulate_every):
@@ -526,9 +537,12 @@ class Trainer:
 
                     milestone = self.step // self.save_and_sample_every
                     batches = num_to_groups(36, self.batch_size)
-                    all_images_list = list(
-                        map(lambda n: self.ema_model.sample(batch_size=n), batches)
-                    )
+                    with self.ema_model.change_test_image_size(
+                        args.inference_image_size
+                    ):
+                        all_images_list = list(
+                            map(lambda n: self.ema_model.sample(batch_size=n), batches)
+                        )
                     all_images = torch.cat(all_images_list, dim=0)
                     if all_images.shape[1] not in {1, 3}:
                         all_images = all_images.argmax(1).float().unsqueeze(1)

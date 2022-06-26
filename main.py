@@ -22,9 +22,22 @@ def get_args():
         help="data set",
     )
     parser.add_argument("--batch-size", "-b", type=int, default=8, help="batch size")
-    parser.add_argument("--image-size", "-s", type=int, default=96, help="image size")
+    parser.add_argument(
+        "--image-size", "-s", type=int, nargs=2, default=(96, 96), help="image size"
+    )
     parser.add_argument("--save-dir", type=str, required=True, help="save folder")
+    parser.add_argument("--checkpoint", type=str, default=None, help="checkpoint")
+    parser.add_argument(
+        "--inference-image-size",
+        type=int,
+        nargs=2,
+        default=None,
+        help="inference image size",
+    )
     args = parser.parse_args()
+    if args.inference_image_size is None:
+        args.inference_image_size = args.image_size
+
     if args.data == "cifar10":
         args.input_channels = 3
         args.output_channels = 3
@@ -74,8 +87,9 @@ def main(args):
         amp=True,  # turn on mixed precision
         results_folder=args.save_dir,
     )
-
-    trainer.train()
+    if args.checkpoint:
+        trainer.load(args.checkpoint)
+    trainer.train(args)
 
 
 if __name__ == "__main__":
