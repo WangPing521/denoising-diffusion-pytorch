@@ -269,7 +269,7 @@ class GaussianDiffusion(nn.Module):
     def sample(self, batch_size=16):
         image_size = self.image_size
         channels = self.channels
-        return self.p_sample_loop((batch_size, channels, image_size, image_size))
+        return self.p_sample_loop((batch_size, channels, *image_size))
 
     @contextlib.contextmanager
     def change_test_image_size(self, image_size: Tuple[int, int]):
@@ -416,9 +416,10 @@ def mask_transform(
 
 
 def real_transform(image_size: Tuple[int, int]):
+    assert image_size[0] <= 224 and image_size[1] <= 168, image_size
     return transforms.Compose(
         [
-            transforms.Resize((512, 384)),
+            transforms.Resize((224, 168)),
             transforms.RandomHorizontalFlip(),
             transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
             transforms.RandomCrop([int(x) for x in image_size]),
