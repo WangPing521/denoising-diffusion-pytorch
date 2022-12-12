@@ -121,7 +121,7 @@ class GaussianDiffusion(nn.Module):
         self,
         denoise_fn: "Unet",
         *,
-        image_size: tuple[int, int],
+        image_size,
         channels=3,
         timesteps=1000,
         loss_type="l1",
@@ -525,6 +525,11 @@ class Trainer:
                         self.scaler.scale(
                             loss / self.gradient_accumulate_every
                         ).backward()
+
+                    # loss = self.model(data)
+                    # loss.backward()
+                    # self.opt.step()
+
 
                     pbar.set_description(f"loss: {loss.item():.4f}")
 

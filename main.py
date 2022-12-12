@@ -82,7 +82,7 @@ def main(args):
         train_batch_size=args.batch_size,
         train_lr=1e-4,
         train_num_steps=700000,  # total training steps
-        gradient_accumulate_every=1,  # gradient accumulation steps
+        gradient_accumulate_every=2,  # gradient accumulation steps
         ema_decay=0.995,  # exponential moving average decay
         amp=True,  # turn on mixed precision
         results_folder=args.save_dir,
