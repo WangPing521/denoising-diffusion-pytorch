@@ -11,7 +11,7 @@ account=def-chdesa
 save_dir=example
 declare -a StringArray=(
 #  beta--cosine
-"python main.py -d cifar10 --save-dir runs --checkpoint runs"
+"python main.py -d cifar10 --save-dir runs/example"
 
 )
 
