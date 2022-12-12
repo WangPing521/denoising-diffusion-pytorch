@@ -6,12 +6,12 @@ CC_WRAPPER_PATH="CC_wrapper.sh"
 
 source $CC_WRAPPER_PATH
 
-time=4
+time=6
 account=def-chdesa
 save_dir=example
 declare -a StringArray=(
 #  beta--cosine
-"python main.py -d cifar10 --save-dir runs"
+"python main.py -d cifar10 --save-dir runs --checkpoint runs"
 
 )
 
