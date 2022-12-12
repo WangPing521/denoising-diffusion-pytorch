@@ -100,11 +100,12 @@ class Unet(nn.Module):
         self.out_dim = default(out_dim, default_out_dim)
 
         self.final_conv = nn.Sequential(
-            block_klass(dim, dim), nn.Conv2d(dim, self.out_dim, 1)
+            block_klass(dim, dim),
+            nn.Conv2d(dim, self.out_dim, 1)
         )
 
     def forward(self, x, time=None):
-        x = self.init_conv(x)
+        x = self.init_conv(x.float())
 
         t = self.time_mlp(time) if exists(self.time_mlp) else None
 

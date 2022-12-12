@@ -16,6 +16,8 @@ from torch.utils import data
 from torch.utils.data import Sampler
 from torchvision import transforms, utils
 from tqdm import tqdm
+import torchvision.datasets as datasets
+
 
 # helpers functions
 from denoising_diffusion_pytorch.unet import EMA
@@ -356,17 +358,17 @@ class Dataset(data.Dataset):
         if exts is None:
             exts = {"jpg", "jpeg", "png", "JPG", "JPEG", "PNG"}
         self.folder = folder
-        self.paths = [p for ext in exts for p in Path(f"{folder}").glob(f"**/*.{ext}")]
-
+        cifar_trainset = datasets.CIFAR10(root=self.folder, train=True, download=True, transform=None)
+        self.data_img = cifar_trainset.data
         self.transform = transform
 
     def __len__(self):
-        return len(self.paths)
+        return self.data_img.shape[0]
 
     def __getitem__(self, index):
-        path = self.paths[index]
-        img = Image.open(path)
-        return self.transform(img)
+        img = self.data_img[index].transpose(2,0,1) / 255
+        # return self.transform(img)
+        return img
 
 
 class OneHot:
@@ -533,7 +535,7 @@ class Trainer:
                 if self.step % self.update_ema_every == 0:
                     self.step_ema()
 
-                if self.step != 0 and self.step % self.save_and_sample_every == 0:
+                if self.step != 0 and self.step % self.save_and_sample_every == self.step: # 0 i.e. step=1000-->run
                     self.ema_model.eval()
 
                     milestone = self.step // self.save_and_sample_every

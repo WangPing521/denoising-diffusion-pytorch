@@ -23,7 +23,7 @@ def get_args():
     )
     parser.add_argument("--batch-size", "-b", type=int, default=8, help="batch size")
     parser.add_argument(
-        "--image-size", "-s", type=int, nargs=2, default=(96, 96), help="image size"
+        "--image-size", "-s", type=int, nargs=2, default=(32, 32), help="image size"
     )
     parser.add_argument("--save-dir", type=str, required=True, help="save folder")
     parser.add_argument("--checkpoint", type=str, default=None, help="checkpoint")
