@@ -446,7 +446,7 @@ class Trainer:
         amp=False,
         step_start_ema=2000,
         update_ema_every=10,
-        save_and_sample_every=100,
+        save_and_sample_every=50,
         results_folder="./results",
     ):
         super().__init__()
@@ -540,7 +540,7 @@ class Trainer:
                 if self.step % self.update_ema_every == 0:
                     self.step_ema()
 
-                if self.step != 0 and self.step % self.save_and_sample_every == self.step: # 0 i.e. step=1000-->run
+                if self.step != 0 and self.step % self.save_and_sample_every == 0: # 0 i.e. step=1000-->run
                     self.ema_model.eval()
 
                     milestone = self.step // self.save_and_sample_every
